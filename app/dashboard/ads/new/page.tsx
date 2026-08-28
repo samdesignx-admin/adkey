@@ -4,79 +4,46 @@ import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import { generateAdKey } from "@/lib/adkey/generate";
 
-type Result = { code:string; url:string; qr:string };
+type MediaItem={path:string;name:string;type:"image"|"video";preview:string;order:number};
+type Result={code:string;url:string;qr:string};
 
 export default function NewAd(){
- const [step,setStep]=useState(0);
- const [business,setBusiness]=useState("");
- const [title,setTitle]=useState("");
- const [description,setDescription]=useState("");
- const [ctaLabel,setCtaLabel]=useState("Learn more");
- const [destinationUrl,setDestinationUrl]=useState("");
- const [loading,setLoading]=useState(false);
- const [error,setError]=useState("");
- const [result,setResult]=useState<Result|null>(null);
- const steps=["Business","Details","CTA","Publish"];
-
- function slugify(value:string){return value.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
-
- async function publish(){
-  if(!business.trim()||!title.trim()){setError("Business name and ad title are required.");return;}
-  setLoading(true);setError("");
-  const supabase=createClient();
-  const {data:{user},error:userError}=await supabase.auth.getUser();
-  if(userError||!user){setError("Please log in before publishing an advertisement.");setLoading(false);return;}
-
-  let advertiserId:string;
-  const {data:existing,error:existingError}=await supabase.from("advertisers").select("id").eq("owner_user_id",user.id).limit(1).maybeSingle();
-  if(existingError){setError(existingError.message);setLoading(false);return;}
-  if(existing){advertiserId=existing.id;}
-  else {
-   const base=slugify(business)||"business";
-   const slug=base+"-"+user.id.slice(0,6);
-   const {data,error}=await supabase.from("advertisers").insert({owner_user_id:user.id,name:business.trim(),slug}).select("id").single();
-   if(error||!data){setError(error?.message||"Unable to create business.");setLoading(false);return;}
-   advertiserId=data.id;
-   await supabase.from("subscriptions").insert({advertiser_id:advertiserId,plan:"free",status:"active",active_adkey_limit:1});
+ const [step,setStep]=useState(0),[business,setBusiness]=useState(""),[title,setTitle]=useState(""),[description,setDescription]=useState(""),[ctaLabel,setCtaLabel]=useState("Learn more"),[destinationUrl,setDestinationUrl]=useState(""),[media,setMedia]=useState<MediaItem[]>([]),[loading,setLoading]=useState(false),[error,setError]=useState(""),[result,setResult]=useState<Result|null>(null);
+ const steps=["Business","Details","Media","CTA","Publish"];
+ const slugify=(v:string)=>v.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+ async function addFiles(files:FileList|null){
+  if(!files)return;setError("");
+  const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){setError("Please log in before uploading media.");return;}
+  for(const file of Array.from(files)){
+   if(!file.type.startsWith("image/")&&!file.type.startsWith("video/")){setError("Only image and video files are supported.");continue;}
+   const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const path=`${user.id}/draft/${crypto.randomUUID()}-${safe}`;
+   const {error:uploadError}=await supabase.storage.from("ad-media").upload(path,file,{contentType:file.type,upsert:false});
+   if(uploadError){setError(uploadError.message);continue;}
+   const {data:urlData}=supabase.storage.from("ad-media").getPublicUrl(path);
+   setMedia(prev=>[...prev,{path,name:file.name,type:file.type.startsWith("video/")?"video":"image",preview:urlData.publicUrl,order:prev.length}]);
   }
-
-  const {count,error:countError}=await supabase.from("ad_keys").select("id",{count:"exact",head:true}).eq("status","active");
-  if(countError){setError(countError.message);setLoading(false);return;}
-  if((count||0)>=1){setError("Your free plan allows 1 active AdKey. Billing plans will unlock more keys.");setLoading(false);return;}
-
-  const {data:ad,error:adError}=await supabase.from("ads").insert({
-   advertiser_id:advertiserId,title:title.trim(),description:description.trim()||null,
-   cta_label:ctaLabel.trim()||null,destination_url:destinationUrl.trim()||null,status:"active"
-  }).select("id").single();
-  if(adError||!ad){setError(adError?.message||"Unable to create advertisement.");setLoading(false);return;}
-
-  let code="";
-  let keyError:any=null;
-  for(let attempt=0;attempt<5;attempt++){
-   code=generateAdKey(6);
-   const {error}=await supabase.from("ad_keys").insert({ad_id:ad.id,code,status:"active",activated_at:new Date().toISOString()});
-   if(!error){keyError=null;break;}
-   keyError=error;
-  }
-  if(keyError){setError(keyError.message||"Unable to generate a unique AdKey.");setLoading(false);return;}
-
-  const url=window.location.origin+"/a/"+code;
-  const qr=await QRCode.toDataURL(url,{margin:1,width:512});
-  setResult({code,url,qr});setLoading(false);setStep(3);
  }
-
- if(result) return <div style={{maxWidth:800}}><div className="kicker">Advertisement published</div><h1 style={{fontSize:52,margin:"8px 0"}}>Your AdKey is live.</h1><div className="card"><div className="key" style={{margin:0}}>{result.code}</div><p className="lead">Place this code or QR code on your TV, print, OOH, social or any other advertisement.</p><img src={result.qr} alt={"QR code for "+result.code} style={{width:220,maxWidth:"100%",borderRadius:16}}/><p><strong>Public link:</strong><br/>{result.url}</p><a className="btn btn-yellow" href={result.url} target="_blank">Open advertisement</a></div></div>;
-
- return <div style={{maxWidth:800}}>
-  <div className="kicker">Create advertisement</div><h1 style={{fontSize:50,margin:"8px 0 20px"}}>Build your ad.</h1>
-  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:28}}>{steps.map((s,i)=><span key={s} className="badge" style={{background:i===step?"#ffe600":"#eee",color:"#111"}}>{i+1}. {s}</span>)}</div>
-  <div className="card">
-   {step===0&&<><h2>Your business</h2><p>This appears as the seller profile on the public ad page.</p><input value={business} onChange={e=>setBusiness(e.target.value)} placeholder="Business name" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10}}/></>}
-   {step===1&&<><h2>Advertisement details</h2><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ad title" style={{width:"100%",padding:14,marginBottom:12,border:"1px solid #ddd",borderRadius:10}}/><textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Tell people about your advertisement" style={{width:"100%",minHeight:150,padding:14,border:"1px solid #ddd",borderRadius:10}}/></>}
-   {step===2&&<><h2>Call to action</h2><input value={ctaLabel} onChange={e=>setCtaLabel(e.target.value)} placeholder="CTA label" style={{width:"100%",padding:14,marginBottom:12,border:"1px solid #ddd",borderRadius:10}}/><input value={destinationUrl} onChange={e=>setDestinationUrl(e.target.value)} placeholder="https://yourwebsite.com" type="url" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10}}/></>}
-   {step===3&&<><h2>Ready to publish</h2><p>Publishing creates a real persistent AdKey and dynamic QR code.</p></>}
-   {error&&<p style={{color:"#b00020",fontWeight:700}}>{error}</p>}
-   <div style={{display:"flex",justifyContent:"space-between",marginTop:28}}><button className="btn" disabled={step===0||loading} onClick={()=>setStep(Math.max(0,step-1))}>Back</button><button className="btn btn-yellow" disabled={loading} onClick={()=>step===3?publish():setStep(step+1)}>{loading?"Publishing...":step===3?"Publish & Generate AdKey":"Continue"}</button></div>
-  </div>
- </div>
+ const move=(i:number,d:number)=>setMedia(prev=>{const n=[...prev],j=i+d;if(j<0||j>=n.length)return prev;[n[i],n[j]]=[n[j],n[i]];return n.map((x,k)=>({...x,order:k}));});
+ const remove=async(i:number)=>{const item=media[i];await createClient().storage.from("ad-media").remove([item.path]);setMedia(prev=>prev.filter((_,k)=>k!==i).map((x,k)=>({...x,order:k})));};
+ async function publish(){
+  if(!business.trim()||!title.trim()){setError("Business name and ad title are required.");return;}setLoading(true);setError("");
+  const supabase=createClient();const {data:{user},error:userError}=await supabase.auth.getUser();if(userError||!user){setError("Please log in.");setLoading(false);return;}
+  let advertiserId:string;const {data:existing}=await supabase.from("advertisers").select("id").eq("owner_user_id",user.id).limit(1).maybeSingle();
+  if(existing)advertiserId=existing.id;else{const {data,error}=await supabase.from("advertisers").insert({owner_user_id:user.id,name:business.trim(),slug:(slugify(business)||"business")+"-"+user.id.slice(0,6)}).select("id").single();if(error||!data){setError(error?.message||"Unable to create business.");setLoading(false);return;}advertiserId=data.id;await supabase.from("subscriptions").insert({advertiser_id:advertiserId,plan:"free",status:"active",active_adkey_limit:1});}
+  const {count,error:countError}=await supabase.from("ad_keys").select("id",{count:"exact",head:true}).eq("status","active");if(countError){setError(countError.message);setLoading(false);return;}if((count||0)>=1){setError("Your free plan allows 1 active AdKey. Billing plans will unlock more keys.");setLoading(false);return;}
+  const storedMedia=media.map(({path,name,type,order})=>({path,name,type,order}));
+  const {data:ad,error:adError}=await supabase.from("ads").insert({advertiser_id:advertiserId,title:title.trim(),description:description.trim()||null,cta_label:ctaLabel.trim()||null,destination_url:destinationUrl.trim()||null,status:"active",media:storedMedia}).select("id").single();
+  if(adError||!ad){setError(adError?.message||"Unable to create advertisement.");setLoading(false);return;}
+  let code="",keyError:any=null;for(let a=0;a<5;a++){code=generateAdKey(6);const {error}=await supabase.from("ad_keys").insert({ad_id:ad.id,code,status:"active",activated_at:new Date().toISOString()});if(!error){keyError=null;break;}keyError=error;}
+  if(keyError){setError(keyError.message||"Unable to generate a unique AdKey.");setLoading(false);return;}
+  const url=window.location.origin+"/a/"+code,qr=await QRCode.toDataURL(url,{margin:1,width:512});setResult({code,url,qr});setLoading(false);setStep(4);
+ }
+ if(result)return <div style={{maxWidth:800}}><div className="kicker">Advertisement published</div><h1 style={{fontSize:52}}>Your AdKey is live.</h1><div className="card"><div className="key" style={{margin:0}}>{result.code}</div><p className="lead">Your media, seller profile and CTA are now behind this AdKey.</p><img src={result.qr} alt={"QR code for "+result.code} style={{width:220,borderRadius:16}}/><p><strong>Public link:</strong><br/>{result.url}</p><a className="btn btn-yellow" href={result.url} target="_blank">Open advertisement</a></div></div>;
+ return <div style={{maxWidth:800}}><div className="kicker">Create advertisement</div><h1 style={{fontSize:50}}>Build your ad.</h1><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:28}}>{steps.map((s,i)=><span key={s} className="badge" style={{background:i===step?"#ffe600":"#eee",color:"#111"}}>{i+1}. {s}</span>)}</div><div className="card">
+ {step===0&&<><h2>Your business</h2><p>This appears as the seller profile.</p><input value={business} onChange={e=>setBusiness(e.target.value)} placeholder="Business name" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10}}/></>}
+ {step===1&&<><h2>Advertisement details</h2><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Ad title" style={{width:"100%",padding:14,marginBottom:12,border:"1px solid #ddd",borderRadius:10}}/><textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Tell people about your advertisement" style={{width:"100%",minHeight:150,padding:14,border:"1px solid #ddd",borderRadius:10}}/></>}
+ {step===2&&<><h2>Add media</h2><p>Upload one or multiple images and videos. You can reorder them before publishing.</p><label className="btn btn-yellow" style={{display:"inline-block",cursor:"pointer"}}>Upload images or videos<input hidden type="file" accept="image/*,video/*" multiple onChange={e=>addFiles(e.target.files)}/></label><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginTop:20}}>{media.map((m,i)=><div key={m.path} style={{border:"1px solid #ddd",borderRadius:14,padding:8}}>{m.type==="image"?<img src={m.preview} alt={m.name} style={{width:"100%",height:130,objectFit:"cover",borderRadius:10}}/>:<video src={m.preview} controls style={{width:"100%",height:130,borderRadius:10}}/>}<div style={{fontSize:12,margin:"8px 0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div><div style={{display:"flex",gap:6}}><button className="btn" onClick={()=>move(i,-1)}>←</button><button className="btn" onClick={()=>move(i,1)}>→</button><button className="btn" onClick={()=>remove(i)}>Remove</button></div></div>)}</div></>}
+ {step===3&&<><h2>Call to action</h2><input value={ctaLabel} onChange={e=>setCtaLabel(e.target.value)} placeholder="CTA label" style={{width:"100%",padding:14,marginBottom:12,border:"1px solid #ddd",borderRadius:10}}/><input value={destinationUrl} onChange={e=>setDestinationUrl(e.target.value)} placeholder="https://yourwebsite.com" type="url" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10}}/></>}
+ {step===4&&<><h2>Ready to publish</h2><p>Publishing creates a persistent AdKey, QR code and public interactive ad page.</p></>}
+ {error&&<p style={{color:"#b00020",fontWeight:700}}>{error}</p>}<div style={{display:"flex",justifyContent:"space-between",marginTop:28}}><button className="btn" disabled={step===0||loading} onClick={()=>setStep(Math.max(0,step-1))}>Back</button><button className="btn btn-yellow" disabled={loading} onClick={()=>step===4?publish():setStep(step+1)}>{loading?"Publishing...":step===4?"Publish & Generate AdKey":"Continue"}</button></div></div></div>;
 }
