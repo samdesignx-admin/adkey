@@ -19,8 +19,8 @@ export default function NewAd(){
    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");const path=`${user.id}/draft/${crypto.randomUUID()}-${safe}`;
    const {error:uploadError}=await supabase.storage.from("ad-media").upload(path,file,{contentType:file.type,upsert:false});
    if(uploadError){setError(uploadError.message);continue;}
-   const {data:urlData}=supabase.storage.from("ad-media").getPublicUrl(path);
-   setMedia(prev=>[...prev,{path,name:file.name,type:file.type.startsWith("video/")?"video":"image",preview:urlData.publicUrl,order:prev.length}]);
+   const preview=URL.createObjectURL(file);
+   setMedia(prev=>[...prev,{path,name:file.name,type:file.type.startsWith("video/")?"video":"image",preview,order:prev.length}]);
   }
  }
  const move=(i:number,d:number)=>setMedia(prev=>{const n=[...prev],j=i+d;if(j<0||j>=n.length)return prev;[n[i],n[j]]=[n[j],n[i]];return n.map((x,k)=>({...x,order:k}));});
