@@ -1,46 +1,12 @@
 "use client";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const router = useRouter();
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` }
-    });
-    setLoading(false);
-    if (error) return setMessage(error.message);
-    if (data.session) {
-      router.push("/dashboard");
-      router.refresh();
-    } else {
-      setMessage("Account created. Check your email to confirm your account.");
-    }
-  }
-
-  return <main className="container" style={{maxWidth:520,paddingTop:80}}>
-    <div className="logo">Ad<span>key</span></div>
-    <h1 style={{fontSize:50,marginTop:45}}>Create your account.</h1>
-    <p className="lead">Already have an account? <Link href="/login" style={{fontWeight:800}}>Log in</Link></p>
-    <form className="card" onSubmit={submit}>
-      <input required value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" type="email" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:12}}/>
-      <input required minLength={8} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password (8+ characters)" type="password" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:16}}/>
-      <button disabled={loading} className="btn btn-yellow" style={{width:"100%"}}>{loading ? "Creating account..." : "Create account"}</button>
-      {message && <p style={{color:"#555"}}>{message}</p>}
-      <p style={{marginTop:18,textAlign:"center"}}>Already have an account? <Link href="/login" style={{fontWeight:800}}>Log in</Link></p>
-    </form>
-  </main>;
+export default function Signup(){
+ const [email,setEmail]=useState(""),[password,setPassword]=useState(""),[confirm,setConfirm]=useState(""),[loading,setLoading]=useState(false),[message,setMessage]=useState("");
+ const router=useRouter();
+ async function submit(e:FormEvent){e.preventDefault();setMessage("");if(password!==confirm)return setMessage("Passwords do not match.");setLoading(true);const {data,error}=await createClient().auth.signUp({email,password,options:{emailRedirectTo:`${window.location.origin}/dashboard`}});setLoading(false);if(error)return setMessage("We couldn't create your account. "+error.message);if(data.session){router.push("/dashboard");router.refresh();}else setMessage("Your Adkey account is created. Please check your email to verify your address.");}
+ return <main className="container" style={{maxWidth:540,paddingTop:80}}><div className="logo">Ad<span>key</span></div><div className="kicker" style={{marginTop:42}}>Advertiser portal</div><h1 style={{fontSize:50,marginTop:12}}>Create your Adkey account.</h1><p className="lead">Create, publish and manage advertisements across every channel.</p><form className="card" onSubmit={submit}><label style={{display:"block",fontWeight:800,marginBottom:7}}>Work email</label><input required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" type="email" autoComplete="email" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:14}}/><label style={{display:"block",fontWeight:800,marginBottom:7}}>Password</label><input required minLength={8} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Create a password (8+ characters)" type="password" autoComplete="new-password" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:14}}/><label style={{display:"block",fontWeight:800,marginBottom:7}}>Confirm password</label><input required minLength={8} value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="Confirm your password" type="password" autoComplete="new-password" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:16}}/><button disabled={loading} className="btn btn-yellow" style={{width:"100%"}}>{loading?"Creating your account...":"Create Adkey account"}</button>{message&&<p role="status" style={{color:"#555",lineHeight:1.5}}>{message}</p>}<p style={{marginTop:18,textAlign:"center"}}>Already have an account? <Link href="/login" style={{fontWeight:800}}>Log in</Link></p></form></main>;
 }
