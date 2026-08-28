@@ -1,0 +1,4 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+export default function Search(){const [code,setCode]=useState("");const r=useRouter();return <main className="container" style={{paddingTop:80,maxWidth:650}}><div className="logo">Ad<span>key</span></div><h1 style={{fontSize:52,marginTop:50}}>Have an AdKey?</h1><p className="lead">Enter the code from an advertisement to open its digital experience.</p><form className="codebox" onSubmit={e=>{e.preventDefault();if(code.trim())r.push('/a/'+code.trim().toUpperCase())}}><input placeholder="e.g. 7KX92P" value={code} onChange={e=>setCode(e.target.value)}/><button className="btn btn-yellow">Go</button></form></main>}
