@@ -1,0 +1,2 @@
+export type AdStatus = "draft" | "scheduled" | "active" | "paused" | "expired" | "archived";
+export type EventType = "QR_SCAN" | "CODE_ENTRY" | "AD_VIEW" | "CTA_CLICK" | "OFFER_VIEW" | "OFFER_CLAIM" | "SAVE_AD" | "LEAD_SUBMIT";
