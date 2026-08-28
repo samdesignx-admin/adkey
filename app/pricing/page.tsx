@@ -1,1 +1,40 @@
-import Link from "next/link"; const plans=[["Free","$0","1 active AdKey"],["Starter","$5/week","Up to 5 active AdKeys"],["Growth","$19.99/week","Up to 25 active AdKeys"],["Business","$75/week","Up to 100 active AdKeys"]]; export default function Pricing(){return <main className="container" style={{paddingTop:30}}><div className="nav"><div className="logo">Ad<span>key</span></div><Link href="/">Home</Link></div><h1 style={{marginTop:70,textAlign:"center"}}>Simple pricing.<br/><span className="highlight">More keys as you grow.</span></h1><div className="grid3" style={{gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))"}}>{plans.map(p=><div className="card" key={p[0]}><div className="kicker">{p[0]}</div><h2 style={{fontSize:32}}>{p[1]}</h2><p>{p[2]}</p><Link className="btn btn-yellow" href="/signup">Get started</Link></div>)}</div></main>
+import Link from "next/link";
+
+const plans = [
+  ["Free", "$0", "1 active AdKey"],
+  ["Starter", "$5/week", "Up to 5 active AdKeys"],
+  ["Growth", "$19.99/week", "Up to 25 active AdKeys"],
+  ["Business", "$75/week", "Up to 100 active AdKeys"],
+];
+
+export default function Pricing() {
+  return (
+    <main className="container" style={{ paddingTop: 30 }}>
+      <div className="nav">
+        <div className="logo">Ad<span>key</span></div>
+        <Link href="/">Home</Link>
+      </div>
+
+      <h1 style={{ marginTop: 70, textAlign: "center" }}>
+        Simple pricing.<br />
+        <span className="highlight">More keys as you grow.</span>
+      </h1>
+
+      <div
+        className="grid3"
+        style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))" }}
+      >
+        {plans.map((plan) => (
+          <div className="card" key={plan[0]}>
+            <div className="kicker">{plan[0]}</div>
+            <h2 style={{ fontSize: 32 }}>{plan[1]}</h2>
+            <p>{plan[2]}</p>
+            <Link className="btn btn-yellow" href="/signup">
+              Get started
+            </Link>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
