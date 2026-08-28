@@ -1,6 +1,7 @@
 "use client";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Signup() {
@@ -33,11 +34,13 @@ export default function Signup() {
   return <main className="container" style={{maxWidth:520,paddingTop:80}}>
     <div className="logo">Ad<span>key</span></div>
     <h1 style={{fontSize:50,marginTop:45}}>Create your account.</h1>
+    <p className="lead">Already have an account? <Link href="/login" style={{fontWeight:800}}>Log in</Link></p>
     <form className="card" onSubmit={submit}>
       <input required value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" type="email" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:12}}/>
       <input required minLength={8} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password (8+ characters)" type="password" style={{width:"100%",padding:14,border:"1px solid #ddd",borderRadius:10,marginBottom:16}}/>
       <button disabled={loading} className="btn btn-yellow" style={{width:"100%"}}>{loading ? "Creating account..." : "Create account"}</button>
       {message && <p style={{color:"#555"}}>{message}</p>}
+      <p style={{marginTop:18,textAlign:"center"}}>Already have an account? <Link href="/login" style={{fontWeight:800}}>Log in</Link></p>
     </form>
   </main>;
 }
